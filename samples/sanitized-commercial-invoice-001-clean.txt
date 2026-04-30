@@ -1,0 +1,83 @@
+PACKING LIST / CUSTOMS INVOICE
+
+Original
+
+Value for Customs Purposes Only
+DO NOT REMIT
+
+There is no published price list for these materials.
+
+Remit To:
+GLOBAL INDUSTRIAL SUPPLY INC.
+100 SAMPLE ROAD
+MORRIS PLAINS, NJ 07950
+UNITED STATES
+
+Sold To:
+BAY REGION TERMINALS LLP
+SURVEY NO. 999
+INDUSTRIAL VILLAGE
+DISTRICT SAMPLE
+GUJARAT 394510
+INDIA
+
+Ship To:
+BAY REGION TERMINALS LLP
+SURVEY NO. 999
+INDUSTRIAL VILLAGE
+TALUKA SAMPLE
+GUJARAT 394510
+INDIA
+
+Invoice No.: TEST-INV-1256029
+Invoice Date: 2025-06-25
+Customer PO No.: TEST-PO-5255030A
+Customer No.: TEST-CUST-1001
+Order No.: TEST-ORD-2025-001
+Order Date: 2025-11-25
+Pro Number: TEST-PRO-5255030
+
+Freight Terms:
+Prepaid
+
+FOB:
+International Ocean
+
+Truck / Car No.:
+N/A
+
+ISO Number:
+TESTU5255030
+
+Container Number:
+TESTU5255030
+
+Shipped From:
+SAMPLE GAS EXPORT FACILITY
+
+Line Items:
+
+1.
+Part Number: 10305599-SAMPLE
+Description: Industrial gas material for customs valuation only
+Package Type: T50 ISO TANK
+Quantity: 1
+Unit Price ea/USD: 40000.00
+Total Price USD: 40000.00
+Country of Origin: CN
+Commodity Code: 290339
+
+Invoice Total:
+40000.00 USD
+
+Customs / Export Statement:
+These commodities, technology, or software were exported in accordance with applicable export administration regulations. Diversion contrary to applicable law is prohibited.
+
+Container Ownership Statement:
+Each tank or cylinder is the property of the supplier. Tanks and cylinders are to be returned once they are empty.
+
+Customs Value Statement:
+NO VALUE DECLARED. FOR CUSTOMS PURPOSES ONLY.
+
+Invoice Instructions:
+Certified true and correct.

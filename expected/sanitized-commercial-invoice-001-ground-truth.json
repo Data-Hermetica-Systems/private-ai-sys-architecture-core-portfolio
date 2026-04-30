@@ -1,0 +1,21 @@
+{
+  "documentType": "customs invoice",
+  "vendorName": "GLOBAL INDUSTRIAL SUPPLY INC.",
+  "invoiceNumber": "TEST-INV-1256029",
+  "invoiceDate": "2025-06-25",
+  "currency": "USD",
+  "totalAmount": 40000,
+  "purchaseOrderNumber": "TEST-PO-5255030A",
+  "shipmentNumber": "TESTU5255030",
+  "lineItems": [
+    {
+      "itemNumber": "10305599-SAMPLE",
+      "description": "Industrial gas material for customs valuation only",
+      "quantity": 1,
+      "unitPrice": 40000,
+      "lineAmount": 40000,
+      "countryOfOrigin": "CN",
+      "commodityCode": "290339"
+    }
+  ]
+}
