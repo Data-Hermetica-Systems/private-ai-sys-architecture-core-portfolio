@@ -1,0 +1,38 @@
+private-ai-sys-architecture-core-portfolio
+├── README.md
+├── CHANGELOG.md
+├── package.json
+├── .gitignore
+├── docs
+│   ├── architecture.md
+│   ├── validation-rules.md
+│   ├── weight-reconciliation.md
+│   ├── portfolio-summary.md
+│   └── power-platform-extension.md
+├── src
+│   ├── ocr-pdf-with-tesseract.js
+│   ├── segment-ocr-invoice-items.js
+│   ├── build-canonical-rows-from-segments.js
+│   ├── build-canonical-rows-for-special-families.js
+│   ├── reconcile-invoice-weight-totals.js
+│   ├── build-master-canonical-output.js
+│   └── run-private-document-pipeline.js
+├── samples
+│   ├── sanitized-commercial-invoice-001-clean.txt
+│   └── sanitized-commercial-invoice-001-raw-ocr.txt
+├── expected
+│   └── sanitized-commercial-invoice-001-ground-truth.json
+├── images
+│   └── .gitkeep
+├── ocr
+│   └── .gitkeep
+└── outputs
+    └── .gitkeep
+
+Notes:
+- Source PDFs are not included in the public repository.
+- Generated OCR files are not included in the public repository.
+- Generated rendered page images are not included in the public repository.
+- Generated JSON/CSV outputs are not included in the public repository.
+- Internal project context, prompt workbench files, and private engineering notes are not included in the public repository.
+- The public repository contains sanitized architecture documentation, source code, and placeholder folders for local generated runtime outputs.
