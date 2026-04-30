@@ -1,17 +1,21 @@
 {
-  "name": "local-ai-document-core",
+  "name": "private-ai-sys-architecture-core-portfolio",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs",
-    "test": "tests"
-  },
+  "description": "Sanitized public portfolio implementation of a private document intelligence pipeline for logistics and customs invoice automation.",
+  "main": "src/run-demo-pipeline.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
+  "demo": "node src/run-demo-pipeline.js",
+  "test": "node src/run-demo-pipeline.js"
+},
+  "keywords": [
+    "document-intelligence",
+    "invoice-automation",
+    "ocr",
+    "dataverse",
+    "power-platform",
+    "workflow-automation",
+    "private-ai"
+  ],
   "author": "",
-  "license": "ISC",
-  "type": "commonjs"
+  "license": "MIT"
 }
