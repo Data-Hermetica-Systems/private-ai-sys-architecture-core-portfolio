@@ -29,6 +29,34 @@ function writeJson(relativePath, value) {
   fs.writeFileSync(fullPath, JSON.stringify(value, null, 2), "utf8");
 }
 
+function getMasterRows(masterOutput) {
+  if (Array.isArray(masterOutput.masterRows)) {
+    return masterOutput.masterRows;
+  }
+
+  if (Array.isArray(masterOutput.records)) {
+    return masterOutput.records;
+  }
+
+  if (Array.isArray(masterOutput.canonicalRows)) {
+    return masterOutput.canonicalRows;
+  }
+
+  throw new Error(
+    `Master output does not contain a supported row array. Expected masterRows, records, or canonicalRows. Found keys: ${Object.keys(masterOutput).join(", ")}`
+  );
+}
+
+function getValidationFlagCount(masterOutput) {
+  return Number(
+    masterOutput.metadata?.totalValidationFlagCount ??
+    masterOutput.metadata?.sourceValidationFlagCount ??
+    masterOutput.validation?.totalValidationFlagCount ??
+    masterOutput.validation?.validationFlags?.length ??
+    0
+  );
+}
+
 function runBasePipelineIfNeeded() {
   const masterOutputPath = path.join(outputsDir, "master-canonical-invoice-lines.json");
 
@@ -63,23 +91,27 @@ function runBasePipelineIfNeeded() {
 function intakeAgent(state) {
   const masterOutput = readJson(path.join("outputs", "master-canonical-invoice-lines.json"));
   const pipelineSummary = readJson(path.join("outputs", "master-pipeline-run-summary.json"));
+  const canonicalRows = getMasterRows(masterOutput);
+  const sourceFiles = Array.from(new Set(canonicalRows.map((record) => record.SourceInvoiceFile).filter(Boolean)));
+  const validationFlagCount = getValidationFlagCount(masterOutput);
 
   return {
     ...state,
     intake: {
       sourceType: "local_public_demo",
-      sourceDocumentCount: masterOutput.metadata.invoiceCount,
-      canonicalLineCount: masterOutput.metadata.rowCount,
-      sourceFiles: masterOutput.records.map((record) => record.SourceInvoiceFile),
+      sourceDocumentCount: masterOutput.metadata?.invoiceCount ?? sourceFiles.length,
+      canonicalLineCount: masterOutput.metadata?.rowCount ?? canonicalRows.length,
+      sourceFiles,
       pipelineSummaryPath: path.join("outputs", "master-pipeline-run-summary.json")
     },
     masterOutput,
+    canonicalRows,
     pipelineSummary,
     auditEvents: [
       ...state.auditEvents,
       buildAuditEvent("intake_agent", "captured_pipeline_outputs", {
-        rowCount: masterOutput.metadata.rowCount,
-        validationFlagCount: masterOutput.metadata.totalValidationFlagCount
+        rowCount: canonicalRows.length,
+        validationFlagCount
       })
     ]
   };
@@ -88,9 +120,12 @@ function intakeAgent(state) {
 function validationAgent(state) {
   const validationIssues = [];
 
-  for (const record of state.masterOutput.records) {
-    const expectedAmount = Number((record.Quantity * record.UnitPriceUSD).toFixed(2));
-    const actualAmount = Number(record.LineAmountUSD.toFixed(2));
+  for (const record of state.canonicalRows) {
+    const quantity = Number(record.Quantity);
+    const unitPriceUSD = Number(record.UnitPriceUSD);
+    const lineAmountUSD = Number(record.LineAmountUSD);
+    const expectedAmount = Number((quantity * unitPriceUSD).toFixed(2));
+    const actualAmount = Number(lineAmountUSD.toFixed(2));
 
     if (expectedAmount !== actualAmount) {
       validationIssues.push({
@@ -142,7 +177,8 @@ function validationAgent(state) {
 }
 
 function routingAgent(state) {
-  const requiresHumanReview = state.validation.hasValidationErrors || state.masterOutput.metadata.totalValidationFlagCount > 0;
+  const sourceValidationFlagCount = getValidationFlagCount(state.masterOutput);
+  const requiresHumanReview = state.validation.hasValidationErrors || sourceValidationFlagCount > 0;
   const recommendedAction = requiresHumanReview ? "create_review_case" : "prepare_power_automate_payload";
 
   return {
@@ -216,11 +252,11 @@ function reviewPacketAgent(state) {
       sourceDocumentCount: state.intake.sourceDocumentCount,
       canonicalLineCount: state.intake.canonicalLineCount,
       validationIssueCount: state.validation.issueCount,
-      sourceValidationFlagCount: state.masterOutput.metadata.totalValidationFlagCount,
-      lineAmountGrandTotalUSD: state.masterOutput.metadata.lineAmountGrandTotalUSD
+      sourceValidationFlagCount: getValidationFlagCount(state.masterOutput),
+      lineAmountGrandTotalUSD: state.masterOutput.metadata?.lineAmountGrandTotalUSD ?? calculateLineAmountGrandTotal(state.canonicalRows)
     },
     issues: state.validation.issues,
-    sampleRows: state.masterOutput.records.slice(0, 5)
+    sampleRows: state.canonicalRows.slice(0, 5)
   };
 
   writeJson(path.join("outputs", "human-review-packet.json"), reviewPacket);
@@ -265,10 +301,14 @@ function buildAuditEvent(actor, action, details) {
   };
 }
 
+function calculateLineAmountGrandTotal(rows) {
+  return Number(rows.reduce((sum, record) => sum + Number(record.LineAmountUSD || 0), 0).toFixed(2));
+}
+
 function buildInvoiceBatchPayloads(state) {
   const recordsByInvoice = new Map();
 
-  for (const record of state.masterOutput.records) {
+  for (const record of state.canonicalRows) {
     if (!recordsByInvoice.has(record.InvoiceNumber)) {
       recordsByInvoice.set(record.InvoiceNumber, []);
     }
@@ -285,14 +325,14 @@ function buildInvoiceBatchPayloads(state) {
     invoiceFamily: records[0].InvoiceFamily,
     sourceInvoiceFile: records[0].SourceInvoiceFile,
     extractedLineCount: records.length,
-    lineAmountGrandTotalUSD: Number(records.reduce((sum, record) => sum + record.LineAmountUSD, 0).toFixed(2)),
+    lineAmountGrandTotalUSD: calculateLineAmountGrandTotal(records),
     requiresHumanReview: state.routing.requiresHumanReview,
     batchStatus: state.routing.requiresHumanReview ? "Needs Review" : "Ready For Automation"
   }));
 }
 
 function buildInvoiceLinePayloads(state) {
-  return state.masterOutput.records.map((record, index) => ({
+  return state.canonicalRows.map((record, index) => ({
     externalLineId: `INV-LINE-${String(index + 1).padStart(6, "0")}`,
     invoiceNumber: record.InvoiceNumber,
     sourceInvoiceFile: record.SourceInvoiceFile,
