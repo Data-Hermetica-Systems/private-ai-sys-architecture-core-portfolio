@@ -1,0 +1,430 @@
+openapi: 3.0.3
+info:
+  title: Data Hermetica Document Automation API
+  version: 1.0.0
+  description: |
+    Public portfolio OpenAPI contract for a document automation API that accepts invoice-style text,
+    returns canonical extraction outputs, exposes validation issues, and provides payloads suitable
+    for Power Automate and Dataverse integration.
+servers:
+  - url: https://localhost:7071/api
+    description: Local Azure Functions or local API development host
+  - url: https://example.invalid/api
+    description: Placeholder public-safe deployment URL
+paths:
+  /pipeline-runs:
+    post:
+      operationId: createPipelineRun
+      summary: Create a document pipeline run
+      description: Starts a document extraction and validation run from submitted OCR text or file references.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePipelineRunRequest'
+      responses:
+        '202':
+          description: Pipeline run accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineRunAcceptedResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /pipeline-runs/{runId}:
+    get:
+      operationId: getPipelineRun
+      summary: Get pipeline run summary
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pipeline run summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineRunSummary'
+        '404':
+          description: Run not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /pipeline-runs/{runId}/invoice-lines:
+    get:
+      operationId: listInvoiceLines
+      summary: List canonical invoice lines for a run
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Canonical invoice lines
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - runId
+                  - records
+                properties:
+                  runId:
+                    type: string
+                  records:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CanonicalInvoiceLine'
+  /pipeline-runs/{runId}/validation-issues:
+    get:
+      operationId: listValidationIssues
+      summary: List validation issues for a run
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Validation issues
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - runId
+                  - issues
+                properties:
+                  runId:
+                    type: string
+                  issues:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ValidationIssue'
+  /pipeline-runs/{runId}/power-automate-payload:
+    get:
+      operationId: getPowerAutomatePayload
+      summary: Get normalized payload for Power Automate and Dataverse
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Power Automate payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PowerAutomatePayload'
+  /review-actions:
+    post:
+      operationId: createReviewAction
+      summary: Submit human review action
+      description: Records approval, correction, rejection, escalation, or request-for-information decisions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReviewActionRequest'
+      responses:
+        '201':
+          description: Review action created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewAction'
+components:
+  schemas:
+    CreatePipelineRunRequest:
+      type: object
+      required:
+        - sourceType
+        - documents
+      properties:
+        sourceType:
+          type: string
+          enum:
+            - email
+            - sharepoint
+            - upload
+            - api
+            - local_demo
+        sourceReference:
+          type: string
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceDocument'
+    SourceDocument:
+      type: object
+      required:
+        - documentId
+        - filename
+      properties:
+        documentId:
+          type: string
+        filename:
+          type: string
+        mimeType:
+          type: string
+          example: application/pdf
+        textContent:
+          type: string
+        fileReference:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+    PipelineRunAcceptedResponse:
+      type: object
+      required:
+        - runId
+        - status
+      properties:
+        runId:
+          type: string
+          example: RUN-20260608-0001
+        status:
+          type: string
+          example: accepted
+        statusUrl:
+          type: string
+    PipelineRunSummary:
+      type: object
+      required:
+        - runId
+        - status
+        - metrics
+      properties:
+        runId:
+          type: string
+        status:
+          type: string
+          enum:
+            - accepted
+            - running
+            - completed
+            - failed
+            - needs_review
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        metrics:
+          $ref: '#/components/schemas/PipelineMetrics'
+    PipelineMetrics:
+      type: object
+      required:
+        - invoiceCount
+        - rowCount
+        - totalValidationFlagCount
+        - hasValidationErrors
+      properties:
+        invoiceCount:
+          type: integer
+        rowCount:
+          type: integer
+        lineAmountGrandTotalUSD:
+          type: number
+        netWeightGrandTotalKG:
+          type: number
+        grossWeightGrandTotalKG:
+          type: number
+        totalValidationFlagCount:
+          type: integer
+        hasValidationErrors:
+          type: boolean
+    CanonicalInvoiceLine:
+      type: object
+      required:
+        - sourceInvoiceFile
+        - sourceParser
+        - invoiceNumber
+        - lineNo
+        - productNumber
+        - quantity
+        - unitPriceUSD
+        - lineAmountUSD
+      properties:
+        sourceInvoiceFile:
+          type: string
+        sourceParser:
+          type: string
+        invoiceNumber:
+          type: string
+        invoiceDate:
+          type: string
+          format: date
+        shipmentNumber:
+          type: string
+        invoiceFamily:
+          type: string
+        lineNo:
+          type: integer
+        productNumber:
+          type: string
+        description:
+          type: string
+        unit:
+          type: string
+        quantity:
+          type: number
+        unitPriceUSD:
+          type: number
+        lineAmountUSD:
+          type: number
+        commodityCode:
+          type: string
+        countryOfOrigin:
+          type: string
+        deliveryNote:
+          type: string
+        orderNumber:
+          type: string
+        netWeightKG:
+          type: number
+        grossWeightKG:
+          type: number
+    ValidationIssue:
+      type: object
+      required:
+        - severity
+        - ruleId
+        - message
+        - requiresHumanReview
+      properties:
+        validationIssueId:
+          type: string
+        severity:
+          type: string
+          enum:
+            - info
+            - warning
+            - error
+            - critical
+        ruleId:
+          type: string
+        ruleName:
+          type: string
+        fieldName:
+          type: string
+        lineNo:
+          type: integer
+        productNumber:
+          type: string
+        expectedValue:
+          type: string
+        actualValue:
+          type: string
+        message:
+          type: string
+        requiresHumanReview:
+          type: boolean
+        issueStatus:
+          type: string
+    PowerAutomatePayload:
+      type: object
+      required:
+        - schema
+        - orchestrationRunId
+        - invoiceBatches
+        - invoiceLines
+        - validationIssues
+      properties:
+        schema:
+          type: string
+          example: power_platform_document_pipeline_payload_v1
+        orchestrationRunId:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+        target:
+          type: object
+          additionalProperties: true
+        invoiceBatches:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        invoiceLines:
+          type: array
+          items:
+            $ref: '#/components/schemas/CanonicalInvoiceLine'
+        validationIssues:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationIssue'
+        routing:
+          type: object
+          additionalProperties: true
+    CreateReviewActionRequest:
+      type: object
+      required:
+        - invoiceBatchId
+        - reviewer
+        - reviewActionType
+      properties:
+        invoiceBatchId:
+          type: string
+        validationIssueId:
+          type: string
+        reviewer:
+          type: string
+        reviewActionType:
+          type: string
+          enum:
+            - approve
+            - reject
+            - correct
+            - escalate
+            - request_info
+        oldValue:
+          type: string
+        newValue:
+          type: string
+        reviewNotes:
+          type: string
+    ReviewAction:
+      type: object
+      properties:
+        reviewActionId:
+          type: string
+        invoiceBatchId:
+          type: string
+        validationIssueId:
+          type: string
+        reviewer:
+          type: string
+        reviewActionType:
+          type: string
+        reviewedAt:
+          type: string
+          format: date-time
+    ErrorResponse:
+      type: object
+      required:
+        - errorCode
+        - message
+      properties:
+        errorCode:
+          type: string
+        message:
+          type: string
