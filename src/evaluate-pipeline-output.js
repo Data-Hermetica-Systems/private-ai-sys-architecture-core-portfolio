@@ -27,6 +27,24 @@ function writeJson(relativePath, value) {
   fs.writeFileSync(fullPath, JSON.stringify(value, null, 2), "utf8");
 }
 
+function getMasterRows(masterOutput) {
+  if (Array.isArray(masterOutput.masterRows)) {
+    return masterOutput.masterRows;
+  }
+
+  if (Array.isArray(masterOutput.records)) {
+    return masterOutput.records;
+  }
+
+  if (Array.isArray(masterOutput.canonicalRows)) {
+    return masterOutput.canonicalRows;
+  }
+
+  throw new Error(
+    `Master output does not contain a supported row array. Expected masterRows, records, or canonicalRows. Found keys: ${Object.keys(masterOutput).join(", ")}`
+  );
+}
+
 function runDemoPipelineIfNeeded() {
   const masterOutputPath = path.join(outputsDir, "master-canonical-invoice-lines.json");
 
@@ -97,7 +115,7 @@ function evaluateLineAmountMath(records) {
   const failures = [];
 
   records.forEach((record, index) => {
-    const expectedAmount = Number((record.Quantity * record.UnitPriceUSD).toFixed(2));
+    const expectedAmount = Number((Number(record.Quantity) * Number(record.UnitPriceUSD)).toFixed(2));
     const actualAmount = Number(Number(record.LineAmountUSD).toFixed(2));
 
     if (expectedAmount !== actualAmount) {
@@ -121,9 +139,9 @@ function evaluateLineAmountMath(records) {
   };
 }
 
-function evaluateRowCount(masterOutput) {
-  const metadataRowCount = masterOutput.metadata.rowCount;
-  const actualRowCount = masterOutput.records.length;
+function evaluateRowCount(masterOutput, records) {
+  const metadataRowCount = masterOutput.metadata?.rowCount ?? records.length;
+  const actualRowCount = records.length;
 
   return {
     metric: "row_count_consistency",
@@ -144,10 +162,10 @@ function evaluateRowCount(masterOutput) {
   };
 }
 
-function evaluateGrandTotal(masterOutput) {
-  const expectedGrandTotal = Number(masterOutput.metadata.lineAmountGrandTotalUSD.toFixed(2));
-  const actualGrandTotal = Number(masterOutput.records.reduce((sum, record) => {
-    return sum + Number(record.LineAmountUSD);
+function evaluateGrandTotal(masterOutput, records) {
+  const expectedGrandTotal = Number(Number(masterOutput.metadata?.lineAmountGrandTotalUSD ?? 0).toFixed(2));
+  const actualGrandTotal = Number(records.reduce((sum, record) => {
+    return sum + Number(record.LineAmountUSD || 0);
   }, 0).toFixed(2));
 
   return {
@@ -188,12 +206,13 @@ function main() {
 
     const demoRun = runDemoPipelineIfNeeded();
     const masterOutput = readJson(path.join("outputs", "master-canonical-invoice-lines.json"));
+    const records = getMasterRows(masterOutput);
 
     const evaluations = [
-      evaluateRowCount(masterOutput),
-      evaluateRequiredFields(masterOutput.records),
-      evaluateLineAmountMath(masterOutput.records),
-      evaluateGrandTotal(masterOutput)
+      evaluateRowCount(masterOutput, records),
+      evaluateRequiredFields(records),
+      evaluateLineAmountMath(records),
+      evaluateGrandTotal(masterOutput, records)
     ];
 
     const score = calculateScore(evaluations);
@@ -203,6 +222,8 @@ function main() {
       generatedAt: new Date().toISOString(),
       demoRun,
       score,
+      rowSourceKey: Array.isArray(masterOutput.masterRows) ? "masterRows" : Array.isArray(masterOutput.records) ? "records" : "canonicalRows",
+      rowCount: records.length,
       evaluations,
       recommendation: score.passed
         ? "Pipeline output passed all public-demo evaluation checks."
@@ -214,6 +235,7 @@ function main() {
     console.log("============================================================");
     console.log("PIPELINE EVALUATION COMPLETE");
     console.log("============================================================");
+    console.log(`Rows evaluated: ${records.length}`);
     console.log(`Passed checks: ${score.passedChecks}/${score.totalChecks}`);
     console.log(`Score: ${score.scorePercent}%`);
     console.log(`Passed: ${score.passed}`);
